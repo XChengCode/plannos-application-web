@@ -259,6 +259,28 @@
     .suggestion-card .icon { font-size: 20px; margin-bottom: 8px; display: block;}
     .suggestion-card .text { font-size: 14px; color: #374151; font-weight: 500; line-height: 1.4; }
 
+    /* 🤖 AI 思考中的呼吸圆点动画 */
+    .typing-indicator {
+      display: flex;
+      gap: 5px;
+      padding: 8px 4px;
+      align-items: center;
+    }
+    .typing-indicator span {
+      width: 6px;
+      height: 6px;
+      background: #9CA3AF;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out both;
+    }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+    .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
   </style>
 </head>
 
@@ -388,7 +410,15 @@
       addMessage("user", msg);
 
       const bubble = addMessage("bot", "");
-      bubble.innerHTML = "<div class='text-content'></div>";
+      
+      // 🚀 注入跳动的三个圆点作为加载占位符
+      bubble.innerHTML = `
+        <div class='text-content'>
+          <div class="typing-indicator">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      `;
       const textContainer = bubble.querySelector('.text-content');
 
       lastAssistantText = "";
@@ -454,9 +484,32 @@
                   .openPopup();
 
                 mapData.markers.forEach(m => {
+                    // 🌐 智能拦截链接生成
+                    let searchUrl = "";
+                    const c = (m.council || "").toLowerCase();
+                    const encodedId = encodeURIComponent(m.app_id);
+                    
+                    if (c.includes("barnet")) {
+                      searchUrl = `#idox-post?actionUrl=${encodeURIComponent("https://publicaccess.barnet.gov.uk/online-applications/simpleSearchResults.do?action=firstPage")}&appId=${encodedId}`;
+                    } else if (c.includes("city of london")) {
+                      searchUrl = `#idox-post?actionUrl=${encodeURIComponent("https://www.planning2.cityoflondon.gov.uk/online-applications/simpleSearchResults.do?action=firstPage")}&appId=${encodedId}`;
+                    } else {
+                      searchUrl = `https://www.google.com/search?q=${encodeURIComponent(m.council + ' planning application ' + m.app_id)}`;
+                    }
+                    
+                    const popupHtml = `
+                      <div style="font-family: var(--sans);">
+                        <b style="color: #111827; font-size: 13px;">Historical Case</b><br>
+                        <span style="color: #4B5563; font-size: 12px;">${m.label}</span><br>
+                        <a href="${searchUrl}" style="display: inline-block; margin-top: 8px; color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: none;">
+                          View Official Record ↗
+                        </a>
+                      </div>
+                    `;
+
                     L.marker([m.lat, m.lon])
                       .addTo(map)
-                      .bindPopup("<b>Historical Case:</b><br>" + m.label);
+                      .bindPopup(popupHtml);
                 });
                 
                 chatEl.scrollTop = chatEl.scrollHeight;
@@ -514,14 +567,49 @@
 
     clearBtn.addEventListener("click", showWelcome);
 
-    // Click handling for example cards
+    // 🚀 全局点击事件拦截：处理卡片点击 & 表单黑科技
     chatEl.addEventListener("click", (e) => {
+      // 1. 处理欢迎提示卡片的点击
       const card = e.target.closest(".suggestion-card");
-      if (!card) return;
-      e.preventDefault();
-      msgEl.value = card.dataset.example;
-      msgEl.style.height = 'auto'; // trigger resize
-      msgEl.focus();
+      if (card) {
+        e.preventDefault();
+        msgEl.value = card.dataset.example;
+        msgEl.style.height = 'auto'; // trigger resize
+        msgEl.focus();
+        return;
+      }
+
+      // 2. 处理案卷详情链接的 POST 表单拦截
+      const a = e.target.closest("a");
+      if (a) {
+        const href = a.getAttribute("href");
+        if (href && href.startsWith("#idox-post")) {
+          e.preventDefault();
+          const params = new URLSearchParams(href.split("?")[1]);
+          const actionUrl = params.get("actionUrl");
+          const appId = params.get("appId");
+          
+          if (actionUrl && appId) {
+              // 瞬间捏造隐形表单
+              const form = document.createElement("form");
+              form.method = "POST";
+              form.action = decodeURIComponent(actionUrl);
+              form.target = "_blank"; // 强制新标签页
+              
+              const inputRef = document.createElement("input");
+              inputRef.type = "hidden";
+              inputRef.name = "searchCriteria.simpleSearchString";
+              inputRef.value = decodeURIComponent(appId);
+              
+              form.appendChild(inputRef);
+              document.body.appendChild(form);
+              
+              // 发射！
+              form.submit();
+              document.body.removeChild(form);
+          }
+        }
+      }
     });
 
     // Show welcome on load
