@@ -541,7 +541,7 @@
     (async () => {
       const { data } = await sb.auth.getSession();
       if (!data.session) {
-        window.location.href = "./Application_index_login.html";
+        window.location.href = "./index_login.html";
         return;
       }
       document.getElementById("sub").textContent = "Signed in as " + data.session.user.email;
