@@ -109,7 +109,6 @@
       height: 85vh; 
       min-height: 600px; 
       box-shadow: var(--shadow-lg);
-
     }
 
     .toolbar { 
@@ -159,8 +158,42 @@
 
     /* 类似 ChatGPT 的内嵌式输入框 */
     .composer-container {
-      padding: 20px 24px;
+      padding: 16px 24px 20px 24px;
       background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 20%);
+    }
+
+    /* 🚀 模式选择胶囊 (Mode Selector) */
+    .mode-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      align-items: center;
+    }
+    .mode-selector label {
+      cursor: pointer;
+    }
+    .mode-selector input[type="radio"] {
+      display: none;
+    }
+    .mode-selector span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--bg);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      transition: all 0.2s ease;
+    }
+    .mode-selector input[type="radio"]:checked + span {
+      background: #111827;
+      color: #ffffff;
+      border-color: #111827;
+      font-weight: 600;
+      box-shadow: var(--shadow-sm);
     }
 
     .composer { 
@@ -342,6 +375,21 @@
       <div id="chat" class="chat"></div>
 
       <div class="composer-container">
+        <div class="mode-selector">
+          <label>
+            <input type="radio" name="search_mode" value="comprehensive" checked> 
+            <span>✨ Comprehensive</span>
+          </label>
+          <label>
+            <input type="radio" name="search_mode" value="policy"> 
+            <span>📖 Policy</span>
+          </label>
+          <label>
+            <input type="radio" name="search_mode" value="application"> 
+            <span>🏛️ Application</span>
+          </label>
+        </div>
+
         <div class="composer">
           <textarea id="msg" placeholder="Ask about a property, postcode, or council policy..."></textarea>
           <button class="send" id="sendBtn" title="Send message">
@@ -395,7 +443,10 @@
       isSending = on;
       sendBtn.disabled = on;
       msgEl.disabled = on;
-      statusText.textContent = on ? "Analyzing policies and local data..." : "AI can make mistakes. Verify important planning information.";
+      statusText.textContent = on ? "Analyzing data..." : "AI can make mistakes. Verify important planning information.";
+      
+      // 禁用模式选择器防止中途更改
+      document.querySelectorAll('input[name="search_mode"]').forEach(radio => radio.disabled = on);
     }
 
     async function send(){
@@ -403,15 +454,14 @@
       if (!msg || isSending) return;
 
       msgEl.value = "";
-      
-      // Auto-resize textarea back to normal
       msgEl.style.height = '54px';
+
+      // 获取当前选中的模式
+      const selectedMode = document.querySelector('input[name="search_mode"]:checked').value;
 
       addMessage("user", msg);
 
       const bubble = addMessage("bot", "");
-      
-      // 🚀 注入跳动的三个圆点作为加载占位符
       bubble.innerHTML = `
         <div class='text-content'>
           <div class="typing-indicator">
@@ -428,7 +478,8 @@
         const res = await fetch(`${API_BASE}/chat`, {
           method: "POST",
           headers: {"Content-Type":"application/json"},
-          body: JSON.stringify({message: msg, conversation_id: "web"})
+          // 🚀 将 mode 打包发给后端
+          body: JSON.stringify({message: msg, conversation_id: "web", mode: selectedMode})
         });
 
         const reader = res.body.getReader();
@@ -484,7 +535,6 @@
                   .openPopup();
 
                 mapData.markers.forEach(m => {
-                    // 🌐 智能拦截链接生成
                     let searchUrl = "";
                     const c = (m.council || "").toLowerCase();
                     const encodedId = encodeURIComponent(m.app_id);
@@ -526,7 +576,6 @@
 
     sendBtn.addEventListener("click", send);
     
-    // Textarea auto-resize & Enter to send
     msgEl.addEventListener('input', function() {
       this.style.height = '54px';
       this.style.height = (this.scrollHeight) + 'px';
@@ -539,7 +588,6 @@
       }
     });
 
-    // Handle initial greeting
     function showWelcome() {
       chatEl.innerHTML = "";
       const welcomeBubble = addMessage("bot", `
@@ -567,19 +615,16 @@
 
     clearBtn.addEventListener("click", showWelcome);
 
-    // 🚀 全局点击事件拦截：处理卡片点击 & 表单黑科技
     chatEl.addEventListener("click", (e) => {
-      // 1. 处理欢迎提示卡片的点击
       const card = e.target.closest(".suggestion-card");
       if (card) {
         e.preventDefault();
         msgEl.value = card.dataset.example;
-        msgEl.style.height = 'auto'; // trigger resize
+        msgEl.style.height = 'auto';
         msgEl.focus();
         return;
       }
 
-      // 2. 处理案卷详情链接的 POST 表单拦截
       const a = e.target.closest("a");
       if (a) {
         const href = a.getAttribute("href");
@@ -590,11 +635,10 @@
           const appId = params.get("appId");
           
           if (actionUrl && appId) {
-              // 瞬间捏造隐形表单
               const form = document.createElement("form");
               form.method = "POST";
               form.action = decodeURIComponent(actionUrl);
-              form.target = "_blank"; // 强制新标签页
+              form.target = "_blank";
               
               const inputRef = document.createElement("input");
               inputRef.type = "hidden";
@@ -604,7 +648,6 @@
               form.appendChild(inputRef);
               document.body.appendChild(form);
               
-              // 发射！
               form.submit();
               document.body.removeChild(form);
           }
@@ -612,7 +655,6 @@
       }
     });
 
-    // Show welcome on load
     showWelcome();
 
     // ===== Supabase Auth (Keep as is) =====
