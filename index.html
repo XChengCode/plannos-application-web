@@ -516,11 +516,11 @@
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const logoutBtn = document.getElementById("logoutBtn");
-    logoutBtn.addEventListener("click", async () => { await sb.auth.signOut(); window.location.href = "./Application_index_login.html"; });
+    logoutBtn.addEventListener("click", async () => { await sb.auth.signOut(); window.location.href = "./index_login.html"; });
 
     (async () => {
       const { data } = await sb.auth.getSession();
-      if (!data.session) { window.location.href = "./Application_index_login.html"; return; }
+      if (!data.session) { window.location.href = "./index_login.html"; return; }
       document.getElementById("sub").textContent = "Signed in as " + data.session.user.email;
     })();
   </script>
